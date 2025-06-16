@@ -1,0 +1,226 @@
+﻿@page "/feedbacks"
+@rendermode InteractiveServer
+@using ClearKilovat.Interfaces
+@using ClearKilovat.Models.Entity
+@inject IDbService dbService
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      integrity="sha512-DTOQO9..." crossorigin="anonymous" />
+
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="height:75vh">
+
+    <RadzenButton Icon="chevron-left"
+                  Disabled="@(!CanPrev)"
+                  Click="@Prev"
+                  class="nav-btn left-btn">
+        <i class="fas fa-chevron-left"></i>
+    </RadzenButton>
+    
+
+    <RadzenCard class="feedback-card">
+
+        @if (current is not null)
+        {
+            <div class="card-header">
+                <i class="fas fa-comment-dots fa-2x" style="color:#2ecc71;"></i>
+                <h3>Жалоба № @current.Id</h3>
+            </div>
+
+            <div class="green-divider"></div>
+
+            @if (current.AccountId is not null)
+            {
+                <div class="field-line">
+                    <i class="fas fa-id-card"></i>
+                    <span class="field-name">Account&nbsp;ID:</span>
+                    <span>@current.AccountId</span>
+                </div>
+            }
+
+            <div class="field-line">
+                <i class="fas fa-clock"></i>
+                <span class="field-name">Дата:</span>
+                <span>@current.CreatedDate.ToString("dd.MM.yyyy HH:mm")</span>
+            </div>
+
+            <div class="msg-block">
+                <span class="field-name">Текст обращения:</span>
+                <p>@current.Message</p>
+            </div>
+
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
+                <RadzenTextArea @bind-Value="_reply[current.Id]"
+                                Rows="3"
+                                Placeholder="Введите ответ..."
+                                Style="width:100%;margin-top:12px;" />
+
+                <RadzenButton Icon="send"
+                              Style="width:50px;height:50px"
+                              class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </RadzenButton>
+
+            </RadzenStack>
+        }
+        else
+        {
+            <p style="text-align:center;color:#6c757d;">Обращений нет</p>
+        }
+    </RadzenCard>
+
+    <RadzenButton Icon="chevron-right"
+                  Disabled="@(!CanNext)"
+                  Click="@Next"
+                  class="nav-btn right-btn">
+        <i class="fas fa-chevron-right"></i>
+    </RadzenButton>
+</RadzenStack>
+
+
+@code {
+    private List<Feedback> feedbacks = new();
+    private readonly Dictionary<int, string> _reply = new();
+
+    private int index = 0;
+    private Feedback? current => feedbacks.ElementAtOrDefault(index);
+    private bool CanPrev => index > 0;
+    private bool CanNext => index < feedbacks.Count - 1;
+    private void Prev() { if (CanPrev) index--; }
+    private void Next() { if (CanNext) index++; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        feedbacks = dbService.GetFeedbacks();
+        foreach (var f in feedbacks) _reply[f.Id] = "";
+    }
+}
+
+
+<style>
+    .feedback-screen {
+        height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 25px;
+        padding: 0 20px;
+    }
+
+    .feedback-card {
+        width: 100%;
+        max-width: 650px;
+        padding: 35px;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,.1);
+        background: linear-gradient(145deg,#ffffff,#f8f9fa);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .card-header {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+        .card-header h3 {
+            color: #2ecc71;
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+        }
+
+    .green-divider {
+        height: 3px;
+        background: linear-gradient(to right,#2ecc71,#27ae60);
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto 10px;
+        border-radius: 2px;
+    }
+
+    .field-line {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 18px;
+        color: #2c3e50;
+    }
+
+    .field-name {
+        font-weight: 500;
+        color: #34495e;
+    }
+
+    .msg-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 18px;
+        color: #2c3e50;
+    }
+
+        .msg-block p {
+            margin: 0;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+    .send-btn {
+        align-self: center;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(145deg,#2ecc71,#27ae60);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.2);
+        margin-top: 12px;
+    }
+
+    .nav-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(145deg,#2ecc71,#27ae60);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 28px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+
+        .nav-btn:disabled {
+            opacity: .35;
+            cursor: default;
+        }
+
+    .left-btn {
+        margin-right: -5px;
+    }
+    .right-btn {
+        margin-left: -5px;
+    }
+
+
+
+    .card-header h3 {
+        font-size: 22px;
+    }
+
+    .field-line, .msg-block {
+        font-size: 16px;
+    }
+
+    }
+</style>

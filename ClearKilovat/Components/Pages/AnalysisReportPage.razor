@@ -1,0 +1,102 @@
+﻿@page "/analysis-report"
+@using System.Text.Json
+@using ClearKilovat.DB
+@using ClearKilovat.Models.Entity
+@using Radzen
+@using Radzen.Blazor
+@using Microsoft.EntityFrameworkCore
+@using System.Text
+@inject IHttpClientFactory HttpClientFactory
+@inject DialogService DialogService
+@inject PostgreDBContext DbContext
+@rendermode InteractiveServer
+
+<RadzenStack Orientation="Orientation.Vertical" Style="width:100%; max-width:900px; margin:0 auto; padding:20px;">
+    <RadzenCard Style="width:100%; padding:30px; border-radius:20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+        <div class="card-header" style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+            <i class="fas fa-chart-line fa-2x" style="color:#2ecc71;"></i>
+            <h3 style="color:#2ecc71; font-size:28px; margin:0; font-weight:600;">Анализ коммерческих объектов</h3>
+        </div>
+        <div style="height:3px; background:linear-gradient(to right, #2ecc71, #27ae60); width:100%; max-width:500px; margin:0 auto 25px; border-radius:2px;"></div>
+
+        <RadzenChart Style="margin-bottom:40px;"  >
+            <RadzenPieSeries Data="@PieChartData" CategoryProperty="Label" ValueProperty="Value" Title="Категории по вероятности" Fills="@colorScheme" />
+        </RadzenChart>
+
+        <RadzenChart Style="margin-bottom:40px;" ColorScheme="ColorScheme.Divergent" >
+            <RadzenColumnSeries Data="@BarChartData" CategoryProperty="Label" ValueProperty="Value" Title="Потребление по месяцам" Fill="#16A085" />
+            <RadzenCategoryAxis />
+            <RadzenValueAxis />
+        </RadzenChart>
+
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private class ChartItem { public string Label { get; set; } = string.Empty; public double Value { get; set; } }
+    public List<string> colorScheme = new() { "#f74d4d", "#F1C40F", "#27AE60" };
+    private List<ChartItem> PieChartData = new();
+    private List<ChartItem> BarChartData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await LoadChartDataAsync();
+        await base.OnInitializedAsync();
+        isLoading = false;
+    }
+
+    private async Task LoadChartDataAsync()
+    {
+        // Новая PieChart: категории по вероятности из description_reason
+        var allResults = await DbContext.NNResults.ToListAsync();
+        int over60 = 0, from50to60 = 0, below50 = 0;
+
+        
+
+        foreach (var res in allResults)
+        {
+            if (string.IsNullOrWhiteSpace(res.DescriptionReason)) continue;
+
+            var match = System.Text.RegularExpressions.Regex.Match(res.DescriptionReason, @"(\d+(?:[.,]\d+)?)%");
+            if (!match.Success) continue;
+
+            if (!double.TryParse(match.Groups[1].Value.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double percent))
+                continue;
+
+            if (percent > 60)
+                over60++;
+            else if (percent >= 50)
+                from50to60++;
+            else
+                below50++;
+        }
+
+        PieChartData = new List<ChartItem>
+        {
+            new ChartItem { Label = "Коммерческая", Value = over60 },
+            new ChartItem { Label = "Подозрение", Value = from50to60 },
+            new ChartItem { Label = "Не коммерческая", Value = below50 }
+        };
+
+
+        BarChartData = (await DbContext.Consumptions
+            .GroupBy(c => c.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                Avg = g.Average(c => (double)c.Value)
+            })
+            .ToListAsync())
+            .OrderBy(x => x.Month)
+            .Select(x => new ChartItem
+                {
+                    Label = x.Month.ToString(),
+                    Value = Math.Round(x.Avg, 2)
+                })
+            .ToList();
+
+    }
+
+    private bool isLoading;
+}

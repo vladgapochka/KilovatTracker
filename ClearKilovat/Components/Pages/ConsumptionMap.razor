@@ -1,0 +1,65 @@
+﻿@page "/map"
+@using Microsoft.JSInterop
+@using ClearKilovat.Models.Entity
+@using ClearKilovat.Interfaces
+@inject IJSRuntime JS
+@inject IDbService dbService
+@rendermode InteractiveServer
+
+<PageTitle>Карта потребления</PageTitle>
+
+<div class="map-container">
+    <div id="spinner" class="spinner"></div>
+    <div id="map" class="map"></div>
+</div>
+
+<style>
+    .map-container {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    }
+
+    .map {
+    width: 100%;
+    height: 100%;
+    }
+
+    .spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    }
+</style>
+
+@code {
+    private bool _initialized;
+    private List<Account> _filterClients = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var clients = await dbService.GetAccountErrors();
+
+        _filterClients = clients.Where(x => x.NnResult?.IsViolator == true || x.ParserAnalytics?.IsViolator == true).ToList();
+
+        var dto = _filterClients.Select(c => new
+        {
+            id = c.Id,
+            address = c.Address,
+            consumption = c.Consumptions?.Sum(x => x.Value) ?? 0
+        });
+
+        await JS.InvokeVoidAsync("mapHelper.initMap", "map", "spinner", dto);
+
+        _initialized = true;
+    }
+}

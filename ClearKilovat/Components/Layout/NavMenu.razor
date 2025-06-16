@@ -1,0 +1,55 @@
+﻿<nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <img src="/kuban.png" alt="" class="brand-img">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+            <RadzenStack Orientation="Orientation.Horizontal">
+                <RadzenText>
+                    <a class="nav-link" href="/">
+                        <i class="fas fa-home"></i> Главная
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/map">
+                        <i class="fas fa-map"></i> Карта потребления
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/consumers">
+                        <i class="fas fa-users"></i> Список потребителей
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/analysis-report">
+                        <i class="fas fa-chart-line"></i> Аналитика и отчеты
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/smart-meters">
+                        <i class="fas fa-microchip"></i> Умные счетчики
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/feedbacks">
+                        <i class="fas fa-comment"></i> Обратная связь
+                    </a>
+                </RadzenText>
+                <RadzenText>
+                    <a class="nav-link" href="/analysis">
+                        <i class="fas fa-robot"></i> ML-анализ
+                    </a>
+                </RadzenText>
+            </RadzenStack>
+        </div>
+    </div>
+</nav>
+
+<style>
+    .nav-link:focus {
+        color: #1dc92b !important; 
+    }
+</style>

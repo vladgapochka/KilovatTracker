@@ -1,0 +1,248 @@
+﻿@page "/smart-meters"
+@using ClearKilovat.Models.Entity
+@using Radzen
+@using Radzen.Blazor
+@rendermode InteractiveServer
+
+<RadzenStack Orientation="Orientation.Vertical" Style="width:100%;  margin:0 auto; ">
+   
+        <div class="card-header" style="display:flex; align-items:center;background-color: transparent; margin-bottom:20px; justify-content: center;">
+
+            <h3 style="color:#2ecc71; font-size:28px;background-color: transparent;  font-weight:600;">Список умных счётчиков</h3>
+        </div>
+
+<RadzenDataGrid Data="@Readings" TItem="SmartMeterReading"
+                RowClick="@OnRowClick"
+                PageSize="5"
+                AllowPaging="true"
+                AllowSorting="true" AllowFiltering="true"
+                Style="border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+    <Columns>
+        <RadzenDataGridColumn TItem="SmartMeterReading" Property="Id" Title="Номер Абонента" Width="80px">
+            <HeaderTemplate>
+                <i class="fas fa-id-card fa-sm" style="color:#34495e; margin-right: 5px;"></i>Номер Абонента
+            </HeaderTemplate>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="SmartMeterReading" Property="SmartMeterId" Title="Номер счетчика" Width="120px">
+            <HeaderTemplate>
+                <i class="fas fa-microchip fa-sm" style="color:#34495e; margin-right: 5px;"></i>Номер счётчика
+            </HeaderTemplate>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="SmartMeterReading" Title="Время" Width="180px">
+            <HeaderTemplate>
+                <i class="fas fa-clock fa-sm" style="color:#34495e; margin-right: 5px;"></i>Время
+            </HeaderTemplate>
+            <Template Context="r">
+                @r.Timestamp.ToString("yyyy-MM-dd HH:mm")
+            </Template>
+        </RadzenDataGridColumn>
+
+        <RadzenDataGridColumn TItem="SmartMeterReading" Property="ConsumptionKwh" Title="КвТ" Width="120px">
+            <HeaderTemplate>
+                <i class="fas fa-bolt fa-sm" style="color:#34495e; margin-right: 5px;"></i>КвТ
+            </HeaderTemplate>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+ 
+</RadzenStack>
+@if (SelectedMeterReadings.Any())
+{
+    <div class="card-header" style="display:flex; align-items:center;background-color: transparent; margin-bottom:20px; margin-top:20px;justify-content: center;">
+
+        <h4 style=" color:#2ecc71; font-size:28px;background-color: transparent; font-weight:600;">Номер счетчика: @SelectedMeterId</h4>
+    </div>
+    <RadzenChart Style="height:450px; font-size: 20px;">
+        <RadzenLineSeries Data="@SelectedMeterReadings"
+                          CategoryProperty="Timestamp"
+                          ValueProperty="ConsumptionKwh"
+                          Title="Потребление"
+                          Interpolation="@interpolation"
+                          Stroke="green"
+                          LineType="LineType.Solid" />
+
+        <RadzenLineSeries Data="@RegressionPoints"
+                          CategoryProperty="Timestamp"
+                          ValueProperty="ConsumptionKwh"
+                          Title="Линейная регрессия"
+                          StrokeWidth="3"
+                          Stroke="blue"
+                          LineType="LineType.Solid" />
+
+        <RadzenCategoryAxis FormatString="{0:HH:00}" />
+        <RadzenValueAxis />
+    </RadzenChart>
+}
+
+
+<style>
+    .rz-data-grid {
+        font-family: Arial, sans-serif;
+        color: #333333;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .rz-datagrid-header {
+        background: linear-gradient(145deg, #2ecc71, #27ae60);
+        color: #ffffff;
+        font-weight: 600;
+        padding: 10px 12px;
+        border-bottom: none;
+    }
+
+    .rz-datagrid-row {
+        border-bottom: 1px solid #dee2e6;
+        transition: background-color 0.3s;
+    }
+
+    .rz-datagrid-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .rz-datagrid-cell {
+        padding: 10px 12px;
+        color: #2c3e50;
+    }
+
+    .rz-link {
+        color: #2ecc71;
+        text-decoration: none;
+    }
+
+    .rz-link:hover {
+        text-decoration: underline;
+        color: #27ae60;
+    }
+
+    .rz-paginator {
+        background-color: #ffffff;
+        border-top: 1px solid #dee2e6;
+        padding: 8px;
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
+    }
+
+    .rz-paginator-button {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #34495e;
+    }
+
+    .rz-paginator-button:hover {
+        background-color: #2ecc71;
+        color: #ffffff;
+        border-color: #27ae60;
+    }
+</style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+@code {
+    Interpolation interpolation = Interpolation.Line;
+    private List<SmartMeterReading> Readings { get; set; } = new();
+    private List<SmartMeterReading> SelectedMeterReadings { get; set; } = new();
+    private List<SmartMeterReading> SmoothedReadings { get; set; } = new();
+    private List<SmartMeterReading> RegressionPoints { get; set; } = new();
+    private int? SelectedMeterId { get; set; }
+
+    private void OnRowClick(DataGridRowMouseEventArgs<SmartMeterReading> args)
+    {
+        SelectedMeterId = args.Data.SmartMeterId;
+        SelectedMeterReadings = Readings
+            .Where(r => r.SmartMeterId == SelectedMeterId)
+            .OrderBy(r => r.Timestamp)
+            .ToList();
+
+        SmoothedReadings = ApplyInterpolatedSmoothCurve(SelectedMeterReadings, 10000);
+        CalculateRegression(Readings);
+    }
+
+    private List<SmartMeterReading> ApplyInterpolatedSmoothCurve(List<SmartMeterReading> data, int steps = 4)
+    {
+        var result = new List<SmartMeterReading>();
+
+        for (int i = 0; i < data.Count - 1; i++)
+        {
+            var a = data[i];
+            var b = data[i + 1];
+
+            for (int j = 0; j < steps; j++)
+            {
+                var t = j / (float)steps;
+                var ts = a.Timestamp.AddTicks((long)((b.Timestamp - a.Timestamp).Ticks * t));
+                var val = a.ConsumptionKwh * (1 - (decimal)t) + b.ConsumptionKwh * (decimal)t;
+
+                result.Add(new SmartMeterReading
+                {
+                    Timestamp = ts,
+                    ConsumptionKwh = val
+                });
+            }
+        }
+
+        result.Add(data.Last()); // добавим последнюю точку
+        return result;
+    }
+
+    private void CalculateRegression(List<SmartMeterReading> input)
+    {
+        RegressionPoints.Clear();
+
+        if (input.Count < 2)
+            return;
+
+        var timestamps = input.Select(r => r.Timestamp.Subtract(input[0].Timestamp).TotalHours).ToArray();
+        var values = input.Select(r => (double)r.ConsumptionKwh).ToArray();
+
+        double xAvg = timestamps.Average();
+        double yAvg = values.Average();
+
+        double numerator = 0;
+        double denominator = 0;
+
+        for (int i = 0; i < timestamps.Length; i++)
+        {
+            numerator += (timestamps[i] - xAvg) * (values[i] - yAvg);
+            denominator += Math.Pow(timestamps[i] - xAvg, 2);
+        }
+
+        double slope = numerator / denominator;
+        double intercept = yAvg - slope * xAvg;
+
+        RegressionPoints = input.Select((r, i) => new SmartMeterReading
+        {
+            Timestamp = r.Timestamp,
+            ConsumptionKwh = (decimal)(slope * timestamps[i] + intercept)
+        }).ToList();
+    }
+
+    protected override void OnInitialized()
+    {
+        GenerateTestData();
+        CalculateRegression(Readings);
+    }
+
+    private void GenerateTestData()
+    {
+        var random = new Random();
+        var baseTime = DateTime.UtcNow.Date.AddDays(-1);
+        int id = 1;
+
+        for (int hour = 0; hour < 24; hour++)
+        {
+            for (int meterId = 1; meterId <= 5; meterId++)
+            {
+                Readings.Add(new SmartMeterReading
+                {
+                    Id = id++,
+                    SmartMeterId = meterId,
+                    Timestamp = baseTime.AddHours(hour),
+                    ConsumptionKwh = Math.Round((decimal)(random.NextDouble() * 5 + 1), 2)
+                });
+            }
+        }
+    }
+}

@@ -1,0 +1,398 @@
+﻿@page "/client-card/{AccountId:int}"
+@rendermode InteractiveServer
+@inject ICompanySearchService companySearchService
+@inject IDbService dbService
+@inject IJSRuntime JSRuntime
+@inject IHttpClientFactory HttpClientFactory
+@inject PostgreDBContext DbContext
+
+@using ClearKilovat.Interfaces
+@using ClearKilovat.Models.Entity
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using Radzen.Blazor
+@using ClearKilovat.DB
+@using ClearKilovat.Models.Parser
+@using System.Text
+@using System.Text.Json
+@using QuestPDF.Fluent;
+@using QuestPDF.Helpers;
+@using QuestPDF.Infrastructure;
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<RadzenStack Orientation="Orientation.Vertical" Style="width:100%; max-width:900px; margin:0 auto; padding:20px;">
+    <RadzenCard Style="width:100%; padding:30px; border-radius:20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background: linear-gradient(145deg, #ffffff, #f8f9fa);">
+        <div class="card-header" style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+            <i class="fas fa-user-circle fa-2x" style="color:#2ecc71;"></i>
+            <h3 style="color:#2ecc71; font-size:28px; margin:0; font-weight:600;">Карточка абонента</h3>
+        </div>
+        <div style="height:3px; background:linear-gradient(to right, #2ecc71, #27ae60); width:100%; max-width:500px; margin:0 auto 25px; border-radius:2px;"></div>
+
+        <RadzenStack Orientation="Orientation.Vertical" Gap="15px">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                <i class="fas fa-id-card fa-lg" style="color:#34495e;"></i>
+                <RadzenLabel Text="Account ID:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                <RadzenLabel Text=@(account.Id.ToString()) Style="font-size:18px; color:#2c3e50;" />
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                <i class="fas fa-home fa-lg" style="color:#34495e;"></i>
+                <RadzenLabel Text="Адрес:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                <RadzenLabel Text=@(account.Address) Style="font-size:18px; color:#2c3e50;" />
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                <i class="fas fa-city fa-lg" style="color:#34495e;"></i>
+                <RadzenLabel Text="Тип здания:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                <RadzenLabel Text=@(account.BuildingType ?? "—") Style="font-size:18px; color:#2c3e50;" />
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                <i class="fas fa-door-open fa-lg" style="color:#34495e;"></i>
+                <RadzenLabel Text="Кол-во комнат:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                <RadzenLabel Text=@(account.RoomsCount?.ToString() ?? "—") Style="font-size:18px; color:#2c3e50;" />
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                <i class="fas fa-users fa-lg" style="color:#34495e;"></i>
+                <RadzenLabel Text="Кол-во жильцов:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                <RadzenLabel Text=@(account.ResidentsCount?.ToString() ?? "—") Style="font-size:18px; color:#2c3e50;" />
+            </RadzenStack>
+            <div class="mt-2" style="height:3px; background:linear-gradient(to right, #2ecc71, #27ae60); width:100%; max-width:500px; margin:0 auto 25px; border-radius:2px;"></div>
+            <RadzenStack Orientation="Orientation.Vertical" Gap="10px">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                    <i class="fas fa-building fa-lg" style="color:#34495e;"></i>
+                    <RadzenLabel Text="Тип объекта с 2gis:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                    <RadzenBadge BadgeStyle="@(isPurposeCommercial ? BadgeStyle.Danger : BadgeStyle.Info)">@(isPurposeCommercial ? "Коммерческий" : "Жилой")</RadzenBadge>
+                </RadzenStack>
+                @if (isPurposeCommercial && companies.Any())
+                {
+                    <RadzenStack Orientation="Orientation.Vertical" Gap="5px" Style="margin-left: 30px;">
+                        <RadzenLabel Text="Компании в здании:" Style="font-size:16px; font-weight:600; color:#34495e; text-transform: uppercase; margin-top: 10px;" />
+                        @foreach (var company in companies)
+                        {
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px" Style="padding: 5px 0;">
+                                <i class="fas fa-circle fa-xs" style="color:#2ecc71;"></i>
+                                <RadzenLabel Text="@company.Name" Style="font-size:16px; color:#2c3e50; font-weight: 400; text-transform: uppercase;" />
+                                <RadzenLabel Text="@company.PhoneNumber" Style="font-size:16px; color:#2c3e50; font-weight: 400; text-transform: uppercase;" />
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
+                }
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Vertical" Gap="10px" Style="margin-top: 15px;">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px">
+                    <i class="fas fa-chart-bar fa-lg" style="color:#34495e;"></i>
+                    <RadzenLabel Text="Нейро-предсказание:" Style="font-size:18px; font-weight:500; color:#34495e;" />
+                    <RadzenBadge BadgeStyle="@(isPredictionCommercial ? BadgeStyle.Danger : BadgeStyle.Info)">@(isPredictionCommercial ? "Коммерческий" : "Жилой")</RadzenBadge>
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10px" Style="margin-left: 30px;">
+                    <i class="fas fa-percentage fa-sm" style="color:#34495e;"></i>
+                    <RadzenLabel Text="Вероятность:" Style="font-size:16px; font-weight:500; color:#34495e;" />
+                    <RadzenLabel Text="@(predictionProbability ?? "Недоступно")" Style="font-size:16px; color:#2c3e50;" />
+                </RadzenStack>
+            </RadzenStack>
+            <RadzenButton Click="@GeneratePdf" Style="width:60px; height:60px; border-radius:50%; background:linear-gradient(145deg, #2ecc71, #27ae60);
+                border:none; margin:20px auto 0; display:flex; align-items:center; justify-content:center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.3s;">
+                <i class="fas fa-download fa-2x" style="color:white;"></i>
+            </RadzenButton>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public int AccountId { get; set; }
+
+    Account account = new();
+    private IdPurposeDTO resultGettingInfo = new();
+    private List<ParserAnalytics> parserAnalytics;
+    private List<Company> companies = new();
+    private List<Company> allCompanies = new();
+    private bool isPurposeCommercial = false;
+    private string? predictionProbability = null;
+    private bool isPredictionCommercial = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        account = await DbContext.Accounts
+            .Include(a => a.Consumptions)
+            .FirstOrDefaultAsync(a => a.Id == AccountId)
+            ?? new Account();
+
+        allCompanies = dbService.GetCompanies();
+        parserAnalytics = dbService.GetParserAnalytics();
+
+        if (!parserAnalytics.Any(x => x.AccountId == account.Id))
+        {
+            ParserAnalytics newAnalytic = new()
+                {
+                    AccountId = account.Id
+                };
+
+            resultGettingInfo = await companySearchService.GetBuildingId(account.Address);
+
+            string purposeName = resultGettingInfo.PurposeName;
+            isPurposeCommercial = companySearchService.IsCommercialBuilding(purposeName);
+
+            newAnalytic.DescriptionReason = purposeName;
+            newAnalytic.IsViolator = isPurposeCommercial;
+
+            await dbService.AddAnalyticToDb(newAnalytic);
+
+            if (!string.IsNullOrEmpty(purposeName) && isPurposeCommercial)
+            {
+                string buildingId = resultGettingInfo.Id;
+                companies = await companySearchService.GetCompaniesInBuilding(buildingId);
+                foreach (var company in companies)
+                {
+                    company.AccountId = account.Id;
+                }
+                await dbService.InsertCompanies(companies);
+            }
+        }
+        else
+        {
+            companies = allCompanies.Where(x => x.AccountId == account.Id).ToList();
+            isPurposeCommercial = parserAnalytics.FirstOrDefault(x => x.AccountId == account.Id)?.IsViolator ?? false;
+        }
+
+        await LoadPredictionAsync();
+    }
+
+    private async Task LoadPredictionAsync()
+    {
+        try
+        {
+            var existingPrediction = await DbContext.NNResults
+                .Where(n => n.AccountId == AccountId)
+                .Select(n => new { n.DescriptionReason, n.IsViolator })
+                .FirstOrDefaultAsync();
+
+            if (existingPrediction != null)
+            {
+                predictionProbability = existingPrediction.DescriptionReason;
+                isPredictionCommercial = existingPrediction.IsViolator;
+                Console.WriteLine($"[SubscriberCard] Использовано кэшированное предсказание для AccountId={AccountId}: {predictionProbability}, IsViolator={isPredictionCommercial}");
+                return;
+            }
+
+            var record = new Dictionary<string, object>
+            {
+                { "accountId", account.Id },
+                { "buildingType", account.BuildingType ?? "Прочий" },
+                { "roomsCount", account.RoomsCount ?? 1 },
+                { "residentsCount", account.ResidentsCount ?? 1 },
+                { "totalArea", (double)(account.TotalArea ?? 100.0m) },
+                {
+                    "consumption",
+                    account.Consumptions?.ToDictionary(
+                        c => c.Month.ToString(),
+                        c => (double)c.Value
+                    ) ?? new Dictionary<string, double>()
+                }
+            };
+
+            var http = HttpClientFactory.CreateClient("BatchPredictClient");
+            var json = JsonSerializer.Serialize(record);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            Console.WriteLine($"[SubscriberCard] Отправка запроса в API /predict для AccountId={AccountId}...");
+            var response = await http.PostAsync("predict", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[SubscriberCard] Ошибка API /predict: {error}");
+                predictionProbability = "Ошибка API";
+                isPredictionCommercial = false;
+                return;
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"[SubscriberCard] Ответ API /predict: {responseContent[..Math.Min(200, responseContent.Length)]}...");
+
+            try
+            {
+                var prediction = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseContent);
+                if (prediction != null &&
+                    prediction.TryGetValue("description_reason", out var descProp) &&
+                    prediction.TryGetValue("is_violator", out var violatorProp))
+                {
+                    predictionProbability = descProp.GetString() ?? "Нет данных";
+                    isPredictionCommercial = violatorProp.GetBoolean();
+
+                    var nnResult = new NnResult
+                        {
+                            AccountId = AccountId,
+                            DescriptionReason = predictionProbability,
+                            IsViolator = isPredictionCommercial,
+                            PredictedAt = prediction.TryGetValue("predicted_at", out var predictedAtProp) &&
+                                                      DateTimeOffset.TryParse(predictedAtProp.GetString(), out var dateTimeOffset)
+                                                      ? dateTimeOffset.UtcDateTime
+                                                      : DateTime.Now
+                        };
+
+                    DbContext.NNResults.Add(nnResult);
+                    await DbContext.SaveChangesAsync();
+                    Console.WriteLine($"[SubscriberCard] Сохранено предсказание в nn_results для AccountId={AccountId}");
+                }
+                else
+                {
+                    predictionProbability = "Некорректный ответ API";
+                    isPredictionCommercial = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SubscriberCard] Ошибка парсинга ответа API: {ex.Message}");
+                predictionProbability = "Ошибка обработки ответа";
+                isPredictionCommercial = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SubscriberCard] Ошибка загрузки предсказания: {ex.Message}");
+            predictionProbability = "Ошибка загрузки";
+            isPredictionCommercial = false;
+        }
+    }
+
+    private async Task GeneratePdf()
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(12).FontFamily(Fonts.Calibri));
+                page.Background().Background(QuestPDF.Helpers.Colors.Grey.Lighten4);
+
+                page.Header()
+                    .PaddingBottom(10)
+                    .BorderBottom(1, Unit.Point)
+                    .Text("Карточка абонента")
+                    .SemiBold()
+                    .FontSize(24)
+                    .FontColor(QuestPDF.Helpers.Colors.Green.Darken2)
+                    .AlignCenter();
+
+                page.Content()
+                    .PaddingVertical(1, Unit.Centimetre)
+                    .Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(180); 
+                            columns.RelativeColumn();   
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Background(QuestPDF.Helpers.Colors.Green.Lighten2).Padding(5).Text("Параметр").Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                            header.Cell().Background(QuestPDF.Helpers.Colors.Green.Lighten2).Padding(5).Text("Значение").Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                        });
+
+                        int rowIndex = 0;
+
+                        void AddRow(string label, string value, string icon = "•")
+                        {
+                            var backgroundColor = rowIndex % 2 == 0 ? QuestPDF.Helpers.Colors.White : QuestPDF.Helpers.Colors.Grey.Lighten5;
+
+                            table.Cell()
+                                .Border(0.5f)
+                                .Background(backgroundColor)
+                                .Padding(8)
+                                .Row(row =>
+                                {
+                                    row.ConstantItem(20).Text(icon).FontSize(10).FontColor(QuestPDF.Helpers.Colors.Green.Medium);
+                                    row.AutoItem().Text(label).Bold();
+                                });
+
+                            table.Cell()
+                                .Border(0.5f)
+                                .Background(backgroundColor)
+                                .Padding(8)
+                                .Text(value);
+
+                            rowIndex++;
+                        }
+
+                        AddRow("Account ID:", account.Id.ToString(), "🆔");
+                        AddRow("Адрес:", account.Address, "🏠");
+                        AddRow("Номер телефона:", companies.FirstOrDefault(x => x.AccountId == account.Id)?.PhoneNumber ?? "—", "📞");
+                        AddRow("Тип здания:", account.BuildingType ?? "—", "🏢");
+                        AddRow("Кол-во комнат:", account.RoomsCount?.ToString() ?? "—", "🛋️");
+                        AddRow("Кол-во жильцов:", account.ResidentsCount?.ToString() ?? "—", "👥");
+                        AddRow("Тип объекта с 2gis:", isPurposeCommercial ? "Коммерческий" : "Жилой", "📍");
+                        AddRow("Нейро-предсказание:", isPredictionCommercial ? "Коммерческий" : "Жилой", "🧠");
+                        AddRow("Вероятность:", predictionProbability ?? "Недоступно", "📊");
+
+                        // Добавляем компании, если они есть
+                        if (isPurposeCommercial && companies.Any())
+                        {
+                            table.Cell()
+                                .ColumnSpan(2)
+                                .PaddingTop(10)
+                                .Text("Компании в здании:")
+                                .Bold()
+                                .FontColor(QuestPDF.Helpers.Colors.Green.Darken2);
+
+                            foreach (var company in companies)
+                            {
+                                var backgroundColor = rowIndex % 2 == 0 ? QuestPDF.Helpers.Colors.White : QuestPDF.Helpers.Colors.Grey.Lighten5;
+                                table.Cell()
+                                    .ColumnSpan(2)
+                                    .Border(0.5f)
+                                    .Background(backgroundColor)
+                                    .Padding(8)
+                                    .Text($"🏬 {company.Name}");
+                                rowIndex++;
+                            }
+                        }
+                    });
+
+                page.Footer()
+    .AlignCenter()
+    .Text(x =>
+    {
+        x.Span("Страница ").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+        x.CurrentPageNumber().FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Medium).Bold();
+        x.Span(" из ").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+        x.TotalPages().FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Medium).Bold();
+    });
+            });
+        });
+
+        using var stream = new MemoryStream();
+        document.GeneratePdf(stream);
+
+        var fileName = $"ОтчётПо{AccountId}.pdf";
+        var fileContent = stream.ToArray();
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "application/pdf", Convert.ToBase64String(fileContent));
+    }
+}
+<script src="/_content/pdf.js"></script>
+<style>
+    .rz-button-md .rzi {
+        font-size: 24px !important;
+        height: 24px !important;
+        line-height: 24px !important;
+        width: 24px !important;
+    }
+
+    @@media (max-width: 768px) {
+        .rz-card {
+            padding: 20px;
+        }
+
+        h3 {
+            font-size: 24px !important;
+        }
+
+        .rz-label {
+            font-size: 16px !important;
+        }
+    }
+</style>
